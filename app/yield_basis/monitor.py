@@ -11,7 +11,7 @@ import re
 import os
 
 from playwright.async_api import async_playwright, TimeoutError as PlaywrightTimeout
-#from telegram_bot import TelegramNotifier
+from app.yield_basis.telegram_bot import TelegramNotifier
 
 TARGET_URL = configuration.TARGET_URL
 CHECK_INTERVAL_SECONDS = configuration.CHECK_INTERVAL_SECONDS 
@@ -45,7 +45,7 @@ def parse_token_name_and_tvl(text: str) -> tuple[float, str]:
 
 class YieldBasisMonitor:
     def __init__(self):
-#        self.notifier = TelegramNotifier()
+        self.notifier = TelegramNotifier()
 
         # Create the storage folder if it doesn't exist
         if not os.path.exists(configuration.STORAGE_FOLDER):
@@ -150,12 +150,12 @@ class YieldBasisMonitor:
                 
             except PlaywrightTimeout as e:
                 logger.error(f"Timeout error: {e}")
-#                await self.notifier.send_error_alert(f"Scraping timeout: {str(e)}")
+                await self.notifier.send_error_alert(f"Scraping timeout: {str(e)}")
                 raise
             
             except Exception as e:
                 logger.error(f"Scraping error: {e}")
-#                await self.notifier.send_error_alert(f"Scraping failed: {str(e)}")
+                await self.notifier.send_error_alert(f"Scraping failed: {str(e)}")
                 raise
             
             finally:
@@ -221,7 +221,7 @@ class YieldBasisMonitor:
                 
                 # Send notifications for each change
                 for change in changes:
-#                    await self.notifier.send_capacity_change(change)
+                    await self.notifier.send_capacity_change(change)
                     await asyncio.sleep(1)  # Rate limiting
             else:
                 logger.info("No changes detected")
@@ -234,7 +234,7 @@ class YieldBasisMonitor:
             
         except Exception as e:
             logger.error(f"Check failed: {e}", exc_info=True)
-#            await self.notifier.send_error_alert(f"Monitor check failed: {str(e)}")
+            await self.notifier.send_error_alert(f"Monitor check failed: {str(e)}")
     
     async def run_once(self):
         """Run check once (for testing)"""
@@ -245,11 +245,11 @@ class YieldBasisMonitor:
         logger.info(f"Starting scheduled monitoring (every {CHECK_INTERVAL_SECONDS} seconds)")
         
         # Send startup notification
-#        await self.notifier.send_status_update(
-#            f"Monitor started\n"
-#            f"Checking every {CHECK_INTERVAL_SECONDS} seconds\n"
-#            f"Target: {TARGET_URL}"
-#        )
+        await self.notifier.send_status_update(
+            f"Monitor started\n"
+            f"Checking every {CHECK_INTERVAL_SECONDS} seconds\n"
+            f"Target: {TARGET_URL}"
+        )
         
         # Run immediately
         await self.check_and_notify()
