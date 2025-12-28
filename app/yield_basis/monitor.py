@@ -7,20 +7,53 @@ from pathlib import Path
 from typing import Dict, List, Optional
 import schedule
 import time
+import re
+import os
 
 from playwright.async_api import async_playwright, TimeoutError as PlaywrightTimeout
 #from telegram_bot import TelegramNotifier
 
 TARGET_URL = configuration.TARGET_URL
-CHECK_INTERVAL_MINUTES = configuration.CHECK_INTERVAL_MINUTES 
-STORAGE_FILE = configuration.STORAGE_FILE
+CHECK_INTERVAL_SECONDS = configuration.CHECK_INTERVAL_SECONDS 
 HEADLESS = configuration.HEADLESS
 TIMEOUT = configuration.TIMEOUT
+
+
+MULTIPLIERS = {
+    'K': 1_000,
+    'M': 1_000_000,
+    'B': 1_000_000_000,
+}
+
+def parse_token_name_and_tvl(text: str) -> tuple[float, str]:
+    # normalize weird spaces
+    text = text.replace('\xa0', ' ').strip()
+
+    pattern = r'^(\d+(?:\.\d+)?)([KMB]?)\s+([A-Za-z0-9]+)\s*\$'
+    m = re.search(pattern, text)
+
+    if not m:
+        raise ValueError(f"Invalid token name and TVL format: {repr(text)}")
+
+    number = float(m.group(1))
+    suffix = m.group(2)
+    token = m.group(3)
+
+    tvl = number * MULTIPLIERS.get(suffix, 1)
+
+    return tvl, token
 
 class YieldBasisMonitor:
     def __init__(self):
 #        self.notifier = TelegramNotifier()
-        self.storage_file = Path(STORAGE_FILE)
+
+        # Create the storage folder if it doesn't exist
+        if not os.path.exists(configuration.STORAGE_FOLDER):
+            os.makedirs(configuration.STORAGE_FOLDER)
+
+        # Full path for the storage file
+        file_path = os.path.join(configuration.STORAGE_FOLDER, configuration.STORAGE_FILE)
+        self.storage_file = Path(file_path)
         
     def load_previous_data(self) -> Dict:
         """Load previously stored capacity data"""
@@ -62,7 +95,7 @@ class YieldBasisMonitor:
                 await page.wait_for_selector('table', timeout=TIMEOUT)
                 
                 # Additional wait for dynamic content
-                await asyncio.sleep(10)
+                await asyncio.sleep(5)
                 
                 # Extract table data
                 logger.info("Extracting table data...")
@@ -102,8 +135,18 @@ class YieldBasisMonitor:
                 }''')
                 
                 logger.info(f"Successfully scraped {len(capacity_data)} rows")
-                logger.info(f"Scraped data: {capacity_data}")
-                return capacity_data
+
+                return_data = []
+                for row in capacity_data:
+                    tvl, token = parse_token_name_and_tvl(row['col4_token_apr'])
+                    if row['col5_tvl'] == 'FILLED':
+                        capacity = '100.00%'
+                    else:
+                        capacity = row['col5_tvl']
+                    return_data.append({'timestamp': row['timestamp'], 'token': token, 'capacity': capacity, 'ft_apy_30d': row['col1_asset'], 'token_apr': row['col3_ot'], 'tvl': tvl})
+
+                logger.info(f"Scraped data: {return_data}")
+                return return_data
                 
             except PlaywrightTimeout as e:
                 logger.error(f"Timeout error: {e}")
@@ -118,15 +161,9 @@ class YieldBasisMonitor:
             finally:
                 await browser.close()
     
-    def detect_changes(self, previous_data: Dict, current_data_list: List[Dict]) -> List[Dict]:
+    def detect_changes(self, previous_data: Dict, current_data: Dict) -> List[Dict]:
         """Compare previous and current data to detect changes"""
         changes = []
-        
-        # Convert current data list to dict for comparison
-        current_data = {}
-        for item in current_data_list:
-            key = f"{item['protocol']}_{item['asset']}"
-            current_data[key] = item
         
         # Check for changes
         for key, current in current_data.items():
@@ -134,13 +171,12 @@ class YieldBasisMonitor:
                 # New entry
                 changes.append({
                     'type': 'NEW',
-                    'protocol': current['protocol'],
-                    'asset': current['asset'],
+                    'token': current['token'],
                     'capacity': current['capacity'],
-                    'apy': current['apy'],
+                    'token_apr': current['token_apr'],
                     'tvl': current['tvl']
                 })
-                logger.info(f"New pool detected: {current['protocol']} - {current['asset']}")
+                logger.info(f"New pool detected: {current['token']} - {current['capacity']}")
             
             else:
                 previous = previous_data[key]
@@ -149,25 +185,12 @@ class YieldBasisMonitor:
                 if previous['capacity'] != current['capacity']:
                     changes.append({
                         'type': 'CAPACITY_CHANGE',
-                        'protocol': current['protocol'],
-                        'asset': current['asset'],
-                        'old_capacity': previous['capacity'],
-                        'new_capacity': current['capacity'],
-                        'apy': current['apy']
+                        'token': current['token'],
+                        'capacity': current['capacity'],
+                        'token_apr': current['token_apr'],
+                        'tvl': current['tvl']
                     })
-                    logger.info(f"Capacity changed: {current['protocol']} - {current['asset']}")
-                
-                # Check APY change
-                elif previous['apy'] != current['apy']:
-                    changes.append({
-                        'type': 'APY_CHANGE',
-                        'protocol': current['protocol'],
-                        'asset': current['asset'],
-                        'old_apy': previous['apy'],
-                        'new_apy': current['apy'],
-                        'capacity': current['capacity']
-                    })
-                    logger.info(f"APY changed: {current['protocol']} - {current['asset']}")
+                    logger.info(f"Capacity changed: {current['token']} - {current['capacity']}")
         
         return changes
     
@@ -182,15 +205,16 @@ class YieldBasisMonitor:
             
             # Scrape current data
             current_data_list = await self.scrape_capacity_data()
+            logger.info(f"current_data_list: {current_data_list}")
             
-            # Convert to dict for storage
+            # Convert to dict for storage and comparison
             current_data = {}
             for item in current_data_list:
-                key = f"{item['protocol']}_{item['asset']}"
+                key = f"{item['token']}"
                 current_data[key] = item
             
             # Detect changes
-            changes = self.detect_changes(previous_data, current_data_list)
+            changes = self.detect_changes(previous_data, current_data)
             
             if changes:
                 logger.info(f"Detected {len(changes)} change(s)")
@@ -218,12 +242,12 @@ class YieldBasisMonitor:
     
     async def run_scheduled(self):
         """Run checks on schedule"""
-        logger.info(f"Starting scheduled monitoring (every {CHECK_INTERVAL_MINUTES} minutes)")
+        logger.info(f"Starting scheduled monitoring (every {CHECK_INTERVAL_SECONDS} seconds)")
         
         # Send startup notification
 #        await self.notifier.send_status_update(
 #            f"Monitor started\n"
-#            f"Checking every {CHECK_INTERVAL_MINUTES} minutes\n"
+#            f"Checking every {CHECK_INTERVAL_SECONDS} seconds\n"
 #            f"Target: {TARGET_URL}"
 #        )
         
@@ -232,9 +256,9 @@ class YieldBasisMonitor:
         
         # Schedule subsequent runs
         def job():
-            asyncio.run(self.check_and_notify())
+            asyncio.create_task(self.check_and_notify())
         
-        schedule.every(CHECK_INTERVAL_MINUTES).minutes.do(job)
+        schedule.every(CHECK_INTERVAL_SECONDS).seconds.do(job)
         
         # Keep running
         while True:

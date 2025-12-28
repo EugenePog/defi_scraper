@@ -19,7 +19,8 @@ class Configuration:
 
     # Monitoring settings
     TARGET_URL = 'https://yieldbasis.com/earn'
-    CHECK_INTERVAL_MINUTES = int(os.getenv('CHECK_INTERVAL_MINUTES', 5))
-    STORAGE_FILE = 'data/out/capacity_data.json'
+    CHECK_INTERVAL_SECONDS = int(os.getenv('CHECK_INTERVAL_SECONDS', 60))
+    STORAGE_FOLDER = "data/out/"
+    STORAGE_FILE = 'capacity_data.json'
 
 configuration = Configuration()
