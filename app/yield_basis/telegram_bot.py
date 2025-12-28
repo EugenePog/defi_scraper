@@ -33,36 +33,17 @@ class TelegramNotifier:
         if change_type == 'NEW':
             return (
                 f"🆕 <b>New Pool Detected</b>\n\n"
-                f"Protocol: <b>{change['protocol']}</b>\n"
-                f"Asset: <b>{change['asset']}</b>\n"
+                f"Token: <b>{change['token']}</b>\n"
                 f"Capacity: <code>{change['capacity']}</code>\n"
-                f"APY: <code>{change.get('apy', 'N/A')}</code>\n"
-                f"TVL: <code>{change.get('tvl', 'N/A')}</code>"
             )
         
         elif change_type == 'CAPACITY_CHANGE':
-            # Determine if capacity increased or decreased
-            emoji = "📈" if self._is_increase(change['old_capacity'], change['new_capacity']) else "📉"
             
             return (
-                f"{emoji} <b>Capacity Changed</b>\n\n"
-                f"Protocol: <b>{change['protocol']}</b>\n"
-                f"Asset: <b>{change['asset']}</b>\n"
+                f"<b>Capacity Changed</b>\n\n"
+                f"Token: <b>{change['token']}</b>\n"
                 f"Old Capacity: <code>{change['old_capacity']}</code>\n"
                 f"New Capacity: <code>{change['new_capacity']}</code>\n"
-                f"APY: <code>{change.get('apy', 'N/A')}</code>"
-            )
-        
-        elif change_type == 'APY_CHANGE':
-            emoji = "💰" if self._is_increase(change['old_apy'], change['new_apy']) else "💸"
-            
-            return (
-                f"{emoji} <b>APY Changed</b>\n\n"
-                f"Protocol: <b>{change['protocol']}</b>\n"
-                f"Asset: <b>{change['asset']}</b>\n"
-                f"Old APY: <code>{change['old_apy']}</code>\n"
-                f"New APY: <code>{change['new_apy']}</code>\n"
-                f"Capacity: <code>{change['capacity']}</code>"
             )
         
         else:

@@ -176,7 +176,7 @@ class YieldBasisMonitor:
                     'token_apr': current['token_apr'],
                     'tvl': current['tvl']
                 })
-                logger.info(f"New pool detected: {current['token']} - {current['capacity']}")
+                logger.info(f"New pool detected: {current['token']}, capacity: {current['capacity']}")
             
             else:
                 previous = previous_data[key]
@@ -186,11 +186,12 @@ class YieldBasisMonitor:
                     changes.append({
                         'type': 'CAPACITY_CHANGE',
                         'token': current['token'],
-                        'capacity': current['capacity'],
+                        'new_capacity': current['capacity'],
+                        'old_capacity': previous['capacity'],
                         'token_apr': current['token_apr'],
                         'tvl': current['tvl']
                     })
-                    logger.info(f"Capacity changed: {current['token']} - {current['capacity']}")
+                    logger.info(f"Capacity changed: {current['token']}: current: {current['capacity']}, previous: {previous['capacity']}")
         
         return changes
     
