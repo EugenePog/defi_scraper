@@ -95,7 +95,7 @@ class YieldBasisMonitor:
                 await page.wait_for_selector('table', timeout=TIMEOUT)
                 
                 # Additional wait for dynamic content
-                await asyncio.sleep(5)
+                await asyncio.sleep(10)
                 
                 # Extract table data
                 logger.info("Extracting table data...")
@@ -150,12 +150,12 @@ class YieldBasisMonitor:
                 
             except PlaywrightTimeout as e:
                 logger.error(f"Timeout error: {e}")
-                await self.notifier.send_error_alert(f"Scraping timeout: {str(e)}")
+#                await self.notifier.send_error_alert(f"Scraping timeout: {str(e)}")
                 raise
             
             except Exception as e:
                 logger.error(f"Scraping error: {e}")
-                await self.notifier.send_error_alert(f"Scraping failed: {str(e)}")
+#                await self.notifier.send_error_alert(f"Scraping failed: {str(e)}")
                 raise
             
             finally:
@@ -228,6 +228,7 @@ class YieldBasisMonitor:
                 logger.info("No changes detected")
             
             # Save current data
+            # to change: save the data only if notification was successful
             self.save_current_data(current_data)
             
             logger.info("Check completed successfully")
@@ -235,7 +236,7 @@ class YieldBasisMonitor:
             
         except Exception as e:
             logger.error(f"Check failed: {e}", exc_info=True)
-            await self.notifier.send_error_alert(f"Monitor check failed: {str(e)}")
+#            await self.notifier.send_error_alert(f"Monitor check failed: {str(e)}")
     
     async def run_once(self):
         """Run check once (for testing)"""
