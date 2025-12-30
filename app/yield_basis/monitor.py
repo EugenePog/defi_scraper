@@ -9,6 +9,7 @@ import schedule
 import time
 import re
 import os
+import csv
 
 from playwright.async_api import async_playwright, TimeoutError as PlaywrightTimeout
 from app.yield_basis.telegram_bot import TelegramNotifier
@@ -51,15 +52,18 @@ class YieldBasisMonitor:
         if not os.path.exists(configuration.STORAGE_FOLDER):
             os.makedirs(configuration.STORAGE_FOLDER)
 
-        # Full path for the storage file
-        file_path = os.path.join(configuration.STORAGE_FOLDER, configuration.STORAGE_FILE)
-        self.storage_file = Path(file_path)
+        # Full path for the current and history storage files
+        file_path_last_data = os.path.join(configuration.STORAGE_FOLDER, configuration.STORAGE_FILE_LAST_DATA)
+        self.file_last_data = Path(file_path_last_data)
+
+        file_path_history_data = os.path.join(configuration.STORAGE_FOLDER, configuration.STORAGE_FILE_HISTORY_DATA)
+        self.file_history_data = Path(file_path_history_data)
         
     def load_previous_data(self) -> Dict:
         """Load previously stored capacity data"""
         try:
-            if self.storage_file.exists():
-                with open(self.storage_file, 'r') as f:
+            if self.file_last_data.exists():
+                with open(self.file_last_data, 'r') as f:
                     data = json.load(f)
                     logger.info(f"Loaded {len(data)} previous entries")
                     return data
@@ -70,11 +74,41 @@ class YieldBasisMonitor:
     def save_current_data(self, data: Dict):
         """Save current capacity data"""
         try:
-            with open(self.storage_file, 'w') as f:
+            with open(self.file_last_data, 'w') as f:
                 json.dump(data, f, indent=2)
             logger.info(f"Saved {len(data)} entries to storage")
         except Exception as e:
             logger.error(f"Error saving data: {e}")
+
+    def save_history_data(self, data_list: List):
+        """
+        Add current capacity data to the history storage
+        Creates file with header if it doesn't exist.
+        """
+        try:
+            # Define the header/field names
+            field_names = ['timestamp', 'token', 'capacity', 'ft_apy_30d', 'token_apr', 'tvl']
+
+            # Check if file exists
+            file_exists_flag = os.path.isfile(self.file_history_data)
+        
+            # Open file in append mode
+            with open(self.file_history_data, 'a', newline='', encoding='utf-8') as csv_file:
+                writer = csv.DictWriter(csv_file, fieldnames=field_names)
+                
+                # Write header only if file is new
+                if not file_exists_flag:
+                    writer.writeheader()
+                    logger.info(f"Created new CSV file to store history data: {self.file_history_data}")
+                
+                # Write all data rows
+                for data in data_list:
+                    writer.writerow(data)
+                
+                logger.info(f"Successfully appended {len(data_list)} row(s) to {self.file_history_data}")
+                
+        except Exception as e:
+            logger.error(f"Error saving data to history CSV file: {e}")
     
     async def scrape_capacity_data(self) -> List[Dict]:
         """Scrape capacity data from YieldBasis using Playwright"""
@@ -207,8 +241,11 @@ class YieldBasisMonitor:
             # Scrape current data
             current_data_list = await self.scrape_capacity_data()
             logger.info(f"current_data_list: {current_data_list}")
+
+            # Save scrapped data to the history storage
+            self.save_history_data(current_data_list)
             
-            # Convert to dict for storage and comparison
+            # Convert to dict for actual storage and comparison
             current_data = {}
             for item in current_data_list:
                 key = f"{item['token']}"
@@ -217,21 +254,33 @@ class YieldBasisMonitor:
             # Detect changes
             changes = self.detect_changes(previous_data, current_data)
             
+            # This ensures that if any notification fails, the previous data will be retained 
+            # and the same changes will be detected again on the next check.
             if changes:
                 logger.info(f"Detected {len(changes)} change(s)")
                 
                 # Send notifications for each change
+                all_notifications_successful = True
                 for change in changes:
-                    await self.notifier.send_capacity_change(change)
-                    await asyncio.sleep(1)  # Rate limiting
+                    try:
+                        await self.notifier.send_capacity_change(change)
+                        await asyncio.sleep(1)
+                        
+                    except Exception as e:
+                        logger.error(f"Failed to send notification for change: {e}")
+                        all_notifications_successful = False
+            
+                # Save current data
+                if all_notifications_successful:
+                    self.save_current_data(current_data)
+                    logger.info("All notifications sent successfully, data saved")
+                else:
+                    logger.warning("Some notifications failed, data not saved, changes will be detected again on the next check")
+
             else:
                 logger.info("No changes detected")
             
-            # Save current data
-            # to change: save the data only if notification was successful
-            self.save_current_data(current_data)
-            
-            logger.info("Check completed successfully")
+            logger.info("Check iteration completed")
             logger.info("="*60)
             
         except Exception as e:
@@ -265,7 +314,11 @@ class YieldBasisMonitor:
         # Keep running
         while True:
             schedule.run_pending()
-            await asyncio.sleep(1)
+
+            # Get remaining idle time from schadule 
+            idle_seconds = schedule.idle_seconds()
+            # Sleep for remaining idle time but more than 1 second
+            await asyncio.sleep(max(idle_seconds, 1))
 
 async def main_yield_basis():
     """Main entry point to yield basis monitor"""

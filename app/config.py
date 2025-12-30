@@ -21,6 +21,7 @@ class Configuration:
     TARGET_URL = 'https://yieldbasis.com/earn'
     CHECK_INTERVAL_SECONDS = int(os.getenv('CHECK_INTERVAL_SECONDS', 60))
     STORAGE_FOLDER = "data/out/"
-    STORAGE_FILE = 'capacity_data.json'
+    STORAGE_FILE_LAST_DATA = 'capacity_data.json'
+    STORAGE_FILE_HISTORY_DATA = 'capacity_data_history.csv'
 
 configuration = Configuration()
