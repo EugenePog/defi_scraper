@@ -14,11 +14,6 @@ import csv
 from playwright.async_api import async_playwright, TimeoutError as PlaywrightTimeout
 from app.yield_basis.telegram_bot import TelegramNotifier
 
-TARGET_URL = configuration.TARGET_URL
-CHECK_INTERVAL_SECONDS = configuration.CHECK_INTERVAL_SECONDS 
-HEADLESS = configuration.HEADLESS
-TIMEOUT = configuration.TIMEOUT
-
 
 MULTIPLIERS = {
     'K': 1_000,
@@ -53,10 +48,10 @@ class YieldBasisMonitor:
             os.makedirs(configuration.STORAGE_FOLDER)
 
         # Full path for the current and history storage files
-        file_path_last_data = os.path.join(configuration.STORAGE_FOLDER, configuration.STORAGE_FILE_LAST_DATA)
+        file_path_last_data = os.path.join(configuration.STORAGE_FOLDER, configuration.STORAGE_FILE_YIELDBASIS_LAST_DATA)
         self.file_last_data = Path(file_path_last_data)
 
-        file_path_history_data = os.path.join(configuration.STORAGE_FOLDER, configuration.STORAGE_FILE_HISTORY_DATA)
+        file_path_history_data = os.path.join(configuration.STORAGE_FOLDER, configuration.STORAGE_FILE_YIELDBASIS_HISTORY_DATA)
         self.file_history_data = Path(file_path_history_data)
         
     def load_previous_data(self) -> Dict:
@@ -112,24 +107,24 @@ class YieldBasisMonitor:
     
     async def scrape_capacity_data(self) -> List[Dict]:
         """Scrape capacity data from YieldBasis using Playwright"""
-        logger.info(f"Starting scrape of {TARGET_URL}")
+        logger.info(f"Starting scrape of {configuration.TARGET_URL_YIELDBASIS}")
         
         async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=HEADLESS)
+            browser = await p.chromium.launch(headless=configuration.HEADLESS)
             
             try:
                 page = await browser.new_page()
                 
                 # Navigate to page
                 logger.info("Navigating to YieldBasis...")
-                await page.goto(TARGET_URL, wait_until='networkidle', timeout=TIMEOUT)
+                await page.goto(configuration.TARGET_URL_YIELDBASIS, wait_until='networkidle', timeout=configuration.TIMEOUT)
                 
                 # Wait for table to load
                 logger.info("Waiting for table to load...")
-                await page.wait_for_selector('table', timeout=TIMEOUT)
+                await page.wait_for_selector('table', timeout=configuration.TIMEOUT)
                 
                 # Additional wait for dynamic content
-                await asyncio.sleep(10)
+                await asyncio.sleep(configuration.PAGE_LOAD_WAITING_TIME)
                 
                 # Extract table data
                 logger.info("Extracting table data...")
@@ -184,12 +179,12 @@ class YieldBasisMonitor:
                 
             except PlaywrightTimeout as e:
                 logger.error(f"Timeout error: {e}")
-#                await self.notifier.send_error_alert(f"Scraping timeout: {str(e)}")
+                await self.notifier.send_error_alert(f"Scraping timeout: {str(e)}")
                 raise
             
             except Exception as e:
                 logger.error(f"Scraping error: {e}")
-#                await self.notifier.send_error_alert(f"Scraping failed: {str(e)}")
+                await self.notifier.send_error_alert(f"Scraping failed: {str(e)}")
                 raise
             
             finally:
@@ -287,19 +282,15 @@ class YieldBasisMonitor:
             logger.error(f"Check failed: {e}", exc_info=True)
 #            await self.notifier.send_error_alert(f"Monitor check failed: {str(e)}")
     
-    async def run_once(self):
-        """Run check once (for testing)"""
-        await self.check_and_notify()
-    
     async def run_scheduled(self):
         """Run checks on schedule"""
-        logger.info(f"Starting scheduled monitoring (every {CHECK_INTERVAL_SECONDS} seconds)")
+        logger.info(f"Starting scheduled monitoring (every {configuration.CHECK_INTERVAL_SECONDS_YIELDBASIS} seconds)")
         
         # Send startup notification
         await self.notifier.send_status_update(
             f"Monitor started\n"
-            f"Checking every {CHECK_INTERVAL_SECONDS} seconds\n"
-            f"Target: {TARGET_URL}"
+            f"Checking every {configuration.CHECK_INTERVAL_SECONDS_YIELDBASIS} seconds\n"
+            f"Target: {configuration.TARGET_URL_YIELDBASIS}"
         )
         
         # Run immediately
@@ -309,7 +300,7 @@ class YieldBasisMonitor:
         def job():
             asyncio.create_task(self.check_and_notify())
         
-        schedule.every(CHECK_INTERVAL_SECONDS).seconds.do(job)
+        schedule.every(configuration.CHECK_INTERVAL_SECONDS_YIELDBASIS).seconds.do(job)
         
         # Keep running
         while True:
@@ -319,18 +310,3 @@ class YieldBasisMonitor:
             idle_seconds = schedule.idle_seconds()
             # Sleep for remaining idle time but more than 1 second
             await asyncio.sleep(max(idle_seconds, 1))
-
-async def main_yield_basis():
-    """Main entry point to yield basis monitor"""
-    import sys
-    
-    monitor = YieldBasisMonitor()
-    
-    # Check for test mode
-    if len(sys.argv) > 1 and sys.argv[1] == 'test':
-        logger.info("Running in TEST mode (single check)")
-        await monitor.run_once()
-    else:
-        logger.info("Running in SCHEDULED mode")
-        await monitor.run_scheduled()
-

@@ -7,7 +7,7 @@ from app.config import configuration
 class TelegramNotifier:
     def __init__(self):
         self.bot = Bot(token=configuration.TELEGRAM_BOT_TOKEN)
-        self.chat_id = configuration.TELEGRAM_CHAT_ID
+        self.chat_id = configuration.TELEGRAM_CHAT_ID_YIELDBASIS
     
     async def send_message(self, message: str, parse_mode: str = 'HTML'):
         """Send a message to Telegram"""

@@ -1,11 +1,14 @@
 import asyncio
 from app import logger
 
-from app.yield_basis.monitor import main_yield_basis
+from app.yield_basis.monitor import YieldBasisMonitor
 
 if __name__ == "__main__":
     try:
-        asyncio.run(main_yield_basis())
+        yield_basis_monitor = YieldBasisMonitor()
+
+        asyncio.run(yield_basis_monitor.run_scheduled())
+        
     except KeyboardInterrupt:
         logger.info("Monitor stopped by user")
     except Exception as e:
