@@ -33,4 +33,10 @@ class Configuration:
     STORAGE_FILE_YIELDBASIS_LAST_DATA = 'yieldbasis_capacity_data.json'
     STORAGE_FILE_YIELDBASIS_HISTORY_DATA = 'yieldbasis_capacity_data_history.csv'
 
+    # Blockchain settings
+    ALCHEMY_URL_ETH = os.getenv('ALCHEMY_URL_ETH')
+    YIELDBASIS_Stake_Zap = '0xE862bC39B8D5F12D8c4117d3e2D493Dc20051EC6'
+    YIELDBASIS_cbBTC_Leverage = '0xAC0cfa7742069a8af0c63e14FFD0fe6b3e1Bf8D2'
+    YIELDBASIS_cbBTC_POOL = '0x83f24023d15d835a213df24fd309c47dAb5BEb32'
+
 configuration = Configuration()
