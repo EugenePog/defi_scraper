@@ -30,6 +30,7 @@ class DepositExecutor:
             pool_contract_abi = ''
             token_contract_adress = ''
             token_contract_abi = ''
+            token_decimals = 8
             
             if currect_data['token'] == 'cbBTC':
                 leverage_contract_adress = configuration.YIELDBASIS_cbBTC_Leverage
@@ -37,26 +38,44 @@ class DepositExecutor:
                 pool_contract_adress = configuration.YIELDBASIS_cbBTC_POOL
                 pool_contract_abi = ABIs['YIELDBASIS_cbBTC_POOL']
                 token_contract_adress = configuration.Token_cbBTC
-                token_contract_abi = ABIs['YIELDBASIS_cbBTC_POOL']
+                token_contract_abi = ABIs['Token_cbBTC']
+                token_decimals = configuration.Token_cbBTC_Decemals
             elif currect_data['token'] == 'WBTC':
                 leverage_contract_adress = configuration.YIELDBASIS_WBTC_Leverage
                 leverage_contract_abi = ABIs['YIELDBASIS_WBTC_Leverage']
                 pool_contract_adress = configuration.YIELDBASIS_WBTC_POOL
                 pool_contract_abi = ABIs['YIELDBASIS_WBTC_POOL']
+                token_contract_adress = configuration.Token_WBTC
+                token_contract_abi = ABIs['Token_WBTC']
+                token_decimals = configuration.Token_WBTC_Decemals
             elif currect_data['token'] == 'tBTC':
                 leverage_contract_adress = configuration.YIELDBASIS_tBTC_Leverage
                 leverage_contract_abi = ABIs['YIELDBASIS_tBTC_Leverage']
                 pool_contract_adress = configuration.YIELDBASIS_tBTC_POOL
                 pool_contract_abi = ABIs['YIELDBASIS_tBTC_POOL']
+                token_contract_adress = configuration.Token_tBTC
+                token_contract_abi = ABIs['Token_tBTC']
+                token_decimals = configuration.Token_tBTC_Decemals
             elif currect_data['token'] == 'WETH':
                 leverage_contract_adress = configuration.YIELDBASIS_WETH_Leverage
                 leverage_contract_abi = ABIs['YIELDBASIS_WETH_Leverage']
                 pool_contract_adress = configuration.YIELDBASIS_WETH_POOL
                 pool_contract_abi = ABIs['YIELDBASIS_WETH_POOL']
+                token_contract_adress = configuration.Token_WETH
+                token_contract_abi = ABIs['Token_WETH']
+                token_decimals = configuration.Token_WETH_Decemals
 
             # Load the leverage contract
             leverage_contract = eth_net.eth.contract(address=leverage_contract_adress, abi=leverage_contract_abi)
             logger.info(f"Loaded leverage contract: {leverage_contract}")
+
+            # Load the token contract
+            token_contract = eth_net.eth.contract(address=token_contract_adress, abi=token_contract_abi)
+            logger.info(f"Loaded token contract: {token_contract}")
+
+            token_amount_to_deposit = 0.0001
+
+            deposit_to_vault(eth_net, token_contract, leverage_contract, leverage_contract_adress, token_amount_to_deposit, token_decimals)
 
             return
     
