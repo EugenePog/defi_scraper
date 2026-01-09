@@ -2,14 +2,22 @@ import asyncio
 from app import logger
 
 from app.yield_basis.monitor import YieldBasisMonitor
-from app.yield_basis.smart_api import get_smart_contract_data
+
+async def run_all_monitors():
+    """Run multiple monitors concurrently"""
+    
+    # Create monitor objects for usage in asyncio
+    yield_basis_monitor = YieldBasisMonitor()
+    
+    # Run all monitors concurrently
+    await asyncio.gather(
+        yield_basis_monitor.run_scheduled(),
+        return_exceptions=True  # Continue if one monitor fails
+    )
 
 if __name__ == "__main__":
     try:
-        yield_basis_monitor = YieldBasisMonitor()
-
-        asyncio.run(yield_basis_monitor.run_scheduled())
-        #get_smart_contract_data()
+        asyncio.run(run_all_monitors())
         
     except KeyboardInterrupt:
         logger.info("Monitor stopped by user")

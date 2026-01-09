@@ -51,6 +51,6 @@ class Configuration:
     YIELDBASIS_WETH_Leverage = '0x931d40dD07b25B91932b481B63631Ea86d236e09'
     YIELDBASIS_WETH_POOL = '0x6e5492F8ea2370844EE098A56DD88e1717e4A9C2'
     Token_WETH = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'
-    Token_WETH_Decemals = 8
+    Token_WETH_Decemals = 18
 
 configuration = Configuration()

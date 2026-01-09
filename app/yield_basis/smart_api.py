@@ -63,9 +63,6 @@ def deposit_to_vault(w3, token_contract, leverage_contract, leverage_contract_ad
     expected_shares = debt_wei  # Rough approximation
     min_shares = int(expected_shares * (1 - slippage_tolerance))
     
-    # Receiver address (optional, defaults to msg.sender)
-    receiver = account.address  # or specify another address
-    
     # Step 1: Approve asset token spending
     approve_tx = token_contract.functions.approve(
         leverage_contract_adress,
@@ -90,7 +87,7 @@ def deposit_to_vault(w3, token_contract, leverage_contract, leverage_contract_ad
         assets_wei,      # assets: uint256
         debt_wei,        # debt: uint256
         min_shares,      # min_shares: uint256
-        receiver         # receiver: address (optional, can omit to use msg.sender)
+        account.address  # receiver: address (optional, set to sender address == account.address)
     ).build_transaction({
         'from': account.address,
         'nonce': w3.eth.get_transaction_count(account.address),
@@ -113,3 +110,7 @@ def deposit_to_vault(w3, token_contract, leverage_contract, leverage_contract_ad
         logger.info(f"Shares received: {shares_received}")
     
     return receipt
+
+def account_balance(w3, token_contract, account_address):      
+
+    return token_contract.functions.balanceOf(account_address).call() #returns value in * 10**6 or in wei

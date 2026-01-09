@@ -302,17 +302,7 @@ class YieldBasisMonitor:
         # Run immediately
         await self.check_and_notify()
         
-        # Schedule subsequent runs
-        def job():
-            asyncio.create_task(self.check_and_notify())
-        
-        schedule.every(configuration.CHECK_INTERVAL_SECONDS_YIELDBASIS).seconds.do(job)
-        
-        # Keep running
+        # Keep running with async sleep
         while True:
-            schedule.run_pending()
-
-            # Get remaining idle time from schadule 
-            idle_seconds = schedule.idle_seconds()
-            # Sleep for remaining idle time but more than 1 second
-            await asyncio.sleep(max(idle_seconds, 1))
+            await asyncio.sleep(configuration.CHECK_INTERVAL_SECONDS_YIELDBASIS)
+            await self.check_and_notify()
