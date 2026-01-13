@@ -13,7 +13,7 @@ import csv
 
 from playwright.async_api import async_playwright, TimeoutError as PlaywrightTimeout
 from app.yield_basis.telegram_bot import TelegramNotifier
-from app.yield_basis.deposit_bot import DepositExecutor
+from app.yield_basis.deposit_bot import PoolSpaceNotificator
 
 
 MULTIPLIERS = {
@@ -43,7 +43,7 @@ def parse_token_name_and_tvl(text: str) -> tuple[float, str]:
 class YieldBasisMonitor:
     def __init__(self):
         self.notifier = TelegramNotifier()
-        self.depositer = DepositExecutor()
+        self.depositer = PoolSpaceNotificator()
 
         # Create the storage folder if it doesn't exist
         if not os.path.exists(configuration.STORAGE_FOLDER):
@@ -244,7 +244,7 @@ class YieldBasisMonitor:
 
             for current_data in current_data_list:
                 if float(current_data['capacity'].rstrip('%')) < 100:
-                    self.depositer.deposit_max(current_data)
+                    self.depositer.notify_available_pool_space(current_data)
             
             # Convert to dict for actual storage and comparison
             current_data = {}

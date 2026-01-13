@@ -5,3 +5,4 @@ python-dotenv
 logging
 dotenv
 web3
+cryptography

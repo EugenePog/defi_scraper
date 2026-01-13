@@ -1,7 +1,13 @@
-#{'timestamp': row['timestamp'], 'token': token, 'capacity': capacity, 'ft_apy_30d': row['col1_asset'], 'token_apr': row['col3_ot'], 'tvl': tvl}
-from app.config import configuration
+from pathlib import Path
+import sys
+import asyncio
+
+# Add project root to Python path
+project_root = Path(__file__).parent.parent
+sys.path.insert(0, str(project_root))
+
+from app import configuration
 from app import logger
-from web3 import Web3
 from typing import Dict
 import aiohttp
 import hmac
@@ -11,9 +17,10 @@ import json
 import os
 from cryptography.fernet import Fernet
 
+
 class PoolSpaceNotificator:
     def __init__(self):
-        self.api_base_url = f"http://localhost:4016"
+        self.api_base_url = f"http://localhost:{configuration.API_PORT}"
         self.api_key = os.getenv("DEPOSIT_API_KEY")
         self.api_secret = os.getenv("DEPOSIT_API_SECRET")
         self.encryption_key = os.getenv("DEPOSIT_ENCRYPTION_KEY")
@@ -85,3 +92,25 @@ class PoolSpaceNotificator:
             logger.error(f"HTTP request error: {e}")
         except Exception as e:
             logger.error(f"Error: {e}")
+
+async def run_deposit_executor():
+    pool_space_notificator = PoolSpaceNotificator()
+    test_pool_position = {
+        'timestamp': '2026-01-11T11:34:01.477Z', 
+        'token': 'WETH', 
+        'capacity': '99.00%', 
+        'ft_apy_30d': '9.87%', 
+        'token_apr': '10.62%', 
+        'tvl': 575.35}
+
+    result = await pool_space_notificator.notify_available_pool_space(test_pool_position)
+    logger.info(f"Result: {result}")
+
+if __name__ == "__main__":
+    try:
+        asyncio.run(run_deposit_executor())
+        
+    except KeyboardInterrupt:
+        logger.info(f"{configuration.PROJECT_NAME} stopped by user")
+    except Exception as e:
+        logger.error(f"Fatal error: {e}", exc_info=True)
