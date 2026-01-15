@@ -1,4 +1,3 @@
-import asyncio
 from telegram import Bot
 from telegram.error import TelegramError
 from app import logger

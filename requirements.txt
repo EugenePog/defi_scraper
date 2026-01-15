@@ -1,8 +1,5 @@
 playwright 
-python-telegram-bot 
-schedule 
+python-telegram-bot  
 python-dotenv
 logging
 dotenv
-web3
-cryptography

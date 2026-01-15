@@ -2,18 +2,14 @@ import asyncio
 import json
 from app import logger
 from app.config import configuration
-from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional
-import schedule
-import time
+from typing import Dict, List
 import re
 import os
 import csv
 
 from playwright.async_api import async_playwright, TimeoutError as PlaywrightTimeout
 from app.yield_basis.telegram_bot import TelegramNotifier
-from app.yield_basis.deposit_bot import PoolSpaceNotificator
 
 
 MULTIPLIERS = {
@@ -43,7 +39,6 @@ def parse_token_name_and_tvl(text: str) -> tuple[float, str]:
 class YieldBasisMonitor:
     def __init__(self):
         self.notifier = TelegramNotifier()
-        self.depositer = PoolSpaceNotificator()
 
         # Create the storage folder if it doesn't exist
         if not os.path.exists(configuration.STORAGE_FOLDER):
@@ -241,10 +236,6 @@ class YieldBasisMonitor:
 
             # Save scrapped data to the history storage
             self.save_history_data(current_data_list)
-
-            for current_data in current_data_list:
-                if float(current_data['capacity'].rstrip('%')) < 100:
-                    self.depositer.notify_available_pool_space(current_data)
             
             # Convert to dict for actual storage and comparison
             current_data = {}
